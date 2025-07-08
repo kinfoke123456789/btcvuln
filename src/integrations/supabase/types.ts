@@ -748,6 +748,42 @@ export type Database = {
         }
         Relationships: []
       }
+      r_value_matches: {
+        Row: {
+          address: string | null
+          created_at: string
+          id: string
+          input_index_1: number
+          input_index_2: number
+          private_key_recovered: boolean
+          r_value: string
+          txid_1: string
+          txid_2: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          id?: string
+          input_index_1: number
+          input_index_2: number
+          private_key_recovered?: boolean
+          r_value: string
+          txid_1: string
+          txid_2: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          id?: string
+          input_index_1?: number
+          input_index_2?: number
+          private_key_recovered?: boolean
+          r_value?: string
+          txid_1?: string
+          txid_2?: string
+        }
+        Relationships: []
+      }
       restaurant_tables: {
         Row: {
           created_at: string | null
@@ -788,6 +824,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      scan_statistics: {
+        Row: {
+          addresses_tracked: number
+          blocks_scanned: number
+          created_at: string
+          id: string
+          r_value_matches: number
+          scan_date: string
+          transactions_scanned: number
+          updated_at: string
+          vulnerabilities_found: number
+        }
+        Insert: {
+          addresses_tracked?: number
+          blocks_scanned?: number
+          created_at?: string
+          id?: string
+          r_value_matches?: number
+          scan_date?: string
+          transactions_scanned?: number
+          updated_at?: string
+          vulnerabilities_found?: number
+        }
+        Update: {
+          addresses_tracked?: number
+          blocks_scanned?: number
+          created_at?: string
+          id?: string
+          r_value_matches?: number
+          scan_date?: string
+          transactions_scanned?: number
+          updated_at?: string
+          vulnerabilities_found?: number
+        }
+        Relationships: []
       }
       smart_accounts: {
         Row: {
@@ -868,6 +940,99 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      tracked_addresses: {
+        Row: {
+          address: string
+          balance: number
+          created_at: string
+          first_seen: string
+          id: string
+          is_flagged: boolean
+          last_seen: string
+          risk_score: number
+          total_received: number
+          total_sent: number
+          transaction_count: number
+          updated_at: string
+        }
+        Insert: {
+          address: string
+          balance?: number
+          created_at?: string
+          first_seen?: string
+          id?: string
+          is_flagged?: boolean
+          last_seen?: string
+          risk_score?: number
+          total_received?: number
+          total_sent?: number
+          transaction_count?: number
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          balance?: number
+          created_at?: string
+          first_seen?: string
+          id?: string
+          is_flagged?: boolean
+          last_seen?: string
+          risk_score?: number
+          total_received?: number
+          total_sent?: number
+          transaction_count?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      transaction_analysis: {
+        Row: {
+          analyzed_at: string
+          block_hash: string | null
+          block_height: number | null
+          fee: number | null
+          id: string
+          input_count: number
+          output_count: number
+          script_analysis: Json | null
+          timestamp: string | null
+          total_input_value: number | null
+          total_output_value: number | null
+          txid: string
+          vulnerability_flags: string[] | null
+        }
+        Insert: {
+          analyzed_at?: string
+          block_hash?: string | null
+          block_height?: number | null
+          fee?: number | null
+          id?: string
+          input_count: number
+          output_count: number
+          script_analysis?: Json | null
+          timestamp?: string | null
+          total_input_value?: number | null
+          total_output_value?: number | null
+          txid: string
+          vulnerability_flags?: string[] | null
+        }
+        Update: {
+          analyzed_at?: string
+          block_hash?: string | null
+          block_height?: number | null
+          fee?: number | null
+          id?: string
+          input_count?: number
+          output_count?: number
+          script_analysis?: Json | null
+          timestamp?: string | null
+          total_input_value?: number | null
+          total_output_value?: number | null
+          txid?: string
+          vulnerability_flags?: string[] | null
+        }
+        Relationships: []
       }
       usage_tracking: {
         Row: {
@@ -1023,6 +1188,51 @@ export type Database = {
           preferred_chains?: string[] | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      vulnerabilities: {
+        Row: {
+          address: string | null
+          amount_btc: number | null
+          block_height: number | null
+          created_at: string
+          description: string
+          details: string | null
+          id: string
+          script_hex: string | null
+          severity: string
+          txid: string
+          updated_at: string
+          vulnerability_type: string
+        }
+        Insert: {
+          address?: string | null
+          amount_btc?: number | null
+          block_height?: number | null
+          created_at?: string
+          description: string
+          details?: string | null
+          id?: string
+          script_hex?: string | null
+          severity: string
+          txid: string
+          updated_at?: string
+          vulnerability_type: string
+        }
+        Update: {
+          address?: string | null
+          amount_btc?: number | null
+          block_height?: number | null
+          created_at?: string
+          description?: string
+          details?: string | null
+          id?: string
+          script_hex?: string | null
+          severity?: string
+          txid?: string
+          updated_at?: string
+          vulnerability_type?: string
         }
         Relationships: []
       }
