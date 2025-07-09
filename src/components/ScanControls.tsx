@@ -5,21 +5,27 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Play, Pause, Square, Settings, Activity } from 'lucide-react';
+import { Play, Pause, Square, Settings, Activity, AlertCircle } from 'lucide-react';
 import { useBlockchainScanner } from '@/hooks/useBlockchainScanner';
+import { blockchainScanner } from '@/utils/blockchainScanner';
 
 const ScanControls = () => {
   const [startBlock, setStartBlock] = useState('870000');
-  const [endBlock, setEndBlock] = useState('870100');
-  const [batchSize, setBatchSize] = useState('10');
+  const [endBlock, setEndBlock] = useState('870010');
+  const [batchSize, setBatchSize] = useState('1');
+  const [rpcUrl, setRpcUrl] = useState('https://bitcoin-mainnet.public.blastapi.io');
   
   const { isScanning, scanProgress, startScan, stopScan } = useBlockchainScanner();
 
   const handleStartScan = () => {
+    // Set RPC URL before starting scan
+    blockchainScanner.setRpcUrl(rpcUrl);
+    
     const options = {
       startBlock: parseInt(startBlock),
       endBlock: parseInt(endBlock),
-      batchSize: parseInt(batchSize)
+      batchSize: parseInt(batchSize),
+      rpcUrl
     };
     
     startScan(options);
@@ -30,15 +36,40 @@ const ScanControls = () => {
       <CardHeader>
         <CardTitle className="text-white flex items-center">
           <Activity className="mr-2 h-5 w-5 text-orange-400" />
-          Blockchain Scanner Controls
+          Real Bitcoin Blockchain Scanner
           {isScanning && (
             <Badge className="ml-2 bg-green-600 animate-pulse">
-              SCANNING
+              SCANNING LIVE DATA
             </Badge>
           )}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
+        {/* Warning about real data */}
+        <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+          <div className="flex items-center">
+            <AlertCircle className="mr-2 h-4 w-4 text-amber-400" />
+            <span className="text-amber-200 text-sm">
+              Now scanning real Bitcoin blockchain data. Processing may be slower due to network requests.
+            </span>
+          </div>
+        </div>
+
+        {/* RPC Configuration */}
+        <div>
+          <label className="text-sm text-slate-300 mb-2 block">Bitcoin RPC URL</label>
+          <Input
+            value={rpcUrl}
+            onChange={(e) => setRpcUrl(e.target.value)}
+            placeholder="https://bitcoin-mainnet.public.blastapi.io"
+            disabled={isScanning}
+            className="bg-slate-700 border-slate-600 text-white"
+          />
+          <p className="text-xs text-slate-400 mt-1">
+            Public endpoint provided. For production, use your own Bitcoin node.
+          </p>
+        </div>
+
         {/* Scan Configuration */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
@@ -57,18 +88,21 @@ const ScanControls = () => {
             <Input
               value={endBlock}
               onChange={(e) => setEndBlock(e.target.value)}
-              placeholder="870100"
+              placeholder="870010"
               type="number"
               disabled={isScanning}
               className="bg-slate-700 border-slate-600 text-white"
             />
+            <p className="text-xs text-slate-400 mt-1">
+              Small range recommended for real data
+            </p>
           </div>
           <div>
             <label className="text-sm text-slate-300 mb-2 block">Batch Size</label>
             <Input
               value={batchSize}
               onChange={(e) => setBatchSize(e.target.value)}
-              placeholder="10"
+              placeholder="1"
               type="number"
               disabled={isScanning}
               className="bg-slate-700 border-slate-600 text-white"
@@ -85,7 +119,7 @@ const ScanControls = () => {
             </div>
             <Progress value={scanProgress} className="h-2" />
             <div className="text-xs text-slate-400 text-center">
-              Scanning blocks {startBlock} to {endBlock}...
+              Scanning real Bitcoin blocks {startBlock} to {endBlock}...
             </div>
           </div>
         )}
@@ -98,7 +132,7 @@ const ScanControls = () => {
               className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white"
             >
               <Play className="mr-2 h-4 w-4" />
-              Start Scan
+              Start Real Scan
             </Button>
           ) : (
             <Button
@@ -128,7 +162,7 @@ const ScanControls = () => {
             <div className="flex items-center">
               <div className={`w-2 h-2 rounded-full mr-2 ${isScanning ? 'bg-green-400 animate-pulse' : 'bg-slate-400'}`} />
               <span className="text-white">
-                {isScanning ? 'Active' : 'Idle'}
+                {isScanning ? 'Scanning Real Blockchain' : 'Idle'}
               </span>
             </div>
           </div>
@@ -136,6 +170,12 @@ const ScanControls = () => {
             <span className="text-slate-400">Block Range:</span>
             <span className="text-slate-200 font-mono">
               {startBlock} → {endBlock}
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-sm mt-2">
+            <span className="text-slate-400">Data Source:</span>
+            <span className="text-blue-400 text-xs">
+              Real Bitcoin Network
             </span>
           </div>
         </div>

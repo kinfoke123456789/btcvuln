@@ -8,12 +8,19 @@ export interface ScanOptions {
   endBlock?: number;
   realTime?: boolean;
   batchSize?: number;
+  rpcUrl?: string;
 }
 
 export class BlockchainScanner {
   private isScanning = false;
   private scanProgress = 0;
   private onProgressCallback?: (progress: number) => void;
+  private rpcUrl: string;
+
+  constructor() {
+    // Default to a public Bitcoin RPC endpoint (replace with your own)
+    this.rpcUrl = 'https://bitcoin-mainnet.public.blastapi.io';
+  }
 
   async startScan(options: ScanOptions = {}) {
     if (this.isScanning) {
@@ -26,9 +33,14 @@ export class BlockchainScanner {
 
     const {
       startBlock = 870000, // Recent block range
-      endBlock = startBlock + 100,
-      batchSize = 10
+      endBlock = startBlock + 10, // Smaller range for real data
+      batchSize = 1, // Process one block at a time for real data
+      rpcUrl
     } = options;
+
+    if (rpcUrl) {
+      this.rpcUrl = rpcUrl;
+    }
 
     try {
       await this.scanBlockRange(startBlock, endBlock, batchSize);
@@ -48,131 +60,146 @@ export class BlockchainScanner {
     for (let blockHeight = startBlock; blockHeight < endBlock; blockHeight += batchSize) {
       const blockBatch = Math.min(batchSize, endBlock - blockHeight);
       
-      console.log(`📦 Scanning blocks ${blockHeight} to ${blockHeight + blockBatch - 1}...`);
+      console.log(`📦 Scanning block ${blockHeight}...`);
 
-      // Simulate block scanning with mock data for now
-      const blockResults = await this.scanBlockBatch(blockHeight, blockBatch);
-      
-      totalVulnerabilities += blockResults.vulnerabilities;
-      totalTransactions += blockResults.transactions;
-      scannedBlocks += blockBatch;
+      try {
+        const blockResults = await this.scanRealBlock(blockHeight);
+        
+        totalVulnerabilities += blockResults.vulnerabilities;
+        totalTransactions += blockResults.transactions;
+        scannedBlocks += blockBatch;
 
-      // Update progress
-      this.scanProgress = (scannedBlocks / totalBlocks) * 100;
-      if (this.onProgressCallback) {
-        this.onProgressCallback(this.scanProgress);
+        // Update progress
+        this.scanProgress = (scannedBlocks / totalBlocks) * 100;
+        if (this.onProgressCallback) {
+          this.onProgressCallback(this.scanProgress);
+        }
+
+        // Update scan statistics
+        await this.updateScanStatistics(scannedBlocks, totalTransactions, totalVulnerabilities);
+
+        // Delay between blocks to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      } catch (error) {
+        console.error(`Error scanning block ${blockHeight}:`, error);
+        // Continue with next block
       }
-
-      // Update scan statistics
-      await this.updateScanStatistics(scannedBlocks, totalTransactions, totalVulnerabilities);
-
-      // Small delay to prevent overwhelming the system
-      await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
     console.log('✅ Scan completed!');
     console.log(`📊 Results: ${totalVulnerabilities} vulnerabilities found in ${totalTransactions} transactions`);
   }
 
-  private async scanBlockBatch(startBlock: number, batchSize: number) {
-    let vulnerabilities = 0;
-    let transactions = 0;
+  private async scanRealBlock(blockHeight: number) {
+    try {
+      // Get block hash by height
+      const blockHash = await this.rpcCall('getblockhash', [blockHeight]);
+      
+      // Get block with transaction details
+      const block = await this.rpcCall('getblock', [blockHash, 2]);
+      
+      let vulnerabilities = 0;
+      const transactions = block.tx || [];
+      
+      console.log(`Processing ${transactions.length} transactions in block ${blockHeight}`);
 
-    // Simulate scanning multiple blocks
-    for (let i = 0; i < batchSize; i++) {
-      const blockHeight = startBlock + i;
-      const blockResults = await this.scanSingleBlock(blockHeight);
-      vulnerabilities += blockResults.vulnerabilities;
-      transactions += blockResults.transactions;
-    }
+      for (const txData of transactions) {
+        try {
+          // Convert RPC transaction data to our format
+          const transaction = this.convertRpcTransaction(txData, blockHeight);
+          
+          // Scan for vulnerabilities
+          const vulnerabilityResults = await VulnerabilityScanner.scanTransaction(transaction);
 
-    return { vulnerabilities, transactions };
-  }
+          // Store vulnerabilities in database
+          for (const vuln of vulnerabilityResults) {
+            await this.storeVulnerability(transaction, vuln, blockHeight);
+            vulnerabilities++;
+          }
 
-  private async scanSingleBlock(blockHeight: number) {
-    // Generate mock transaction data for demonstration
-    const txCount = Math.floor(Math.random() * 50) + 10; // 10-60 transactions per block
-    let vulnerabilities = 0;
-
-    for (let i = 0; i < txCount; i++) {
-      const mockTransaction = this.generateMockTransaction(blockHeight, i);
-      const vulnerabilityResults = await VulnerabilityScanner.scanTransaction(mockTransaction);
-
-      // Store vulnerabilities in database
-      for (const vuln of vulnerabilityResults) {
-        await this.storeVulnerability(mockTransaction, vuln, blockHeight);
-        vulnerabilities++;
+          // Store transaction analysis
+          await this.storeTransactionAnalysis(transaction, vulnerabilityResults, blockHeight);
+        } catch (error) {
+          console.error(`Error processing transaction ${txData.txid}:`, error);
+        }
       }
 
-      // Store transaction analysis
-      await this.storeTransactionAnalysis(mockTransaction, vulnerabilityResults, blockHeight);
+      return { vulnerabilities, transactions: transactions.length };
+    } catch (error) {
+      console.error(`Failed to scan block ${blockHeight}:`, error);
+      return { vulnerabilities: 0, transactions: 0 };
     }
-
-    return { vulnerabilities, transactions: txCount };
   }
 
-  private generateMockTransaction(blockHeight: number, txIndex: number) {
-    const txid = `${blockHeight.toString(16).padStart(8, '0')}${txIndex.toString(16).padStart(4, '0')}${'0'.repeat(56)}`;
-    
-    // Occasionally generate transactions with vulnerabilities for testing
-    const hasRReuse = Math.random() < 0.02; // 2% chance
-    const hasAddressReuse = Math.random() < 0.15; // 15% chance
-    const hasDustAttack = Math.random() < 0.05; // 5% chance
+  private async rpcCall(method: string, params: any[] = []) {
+    try {
+      const response = await fetch(this.rpcUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: Date.now(),
+          method,
+          params
+        })
+      });
 
+      if (!response.ok) {
+        throw new Error(`RPC call failed: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.error) {
+        throw new Error(`RPC error: ${data.error.message}`);
+      }
+
+      return data.result;
+    } catch (error) {
+      console.error(`RPC call failed for method ${method}:`, error);
+      throw error;
+    }
+  }
+
+  private convertRpcTransaction(txData: any, blockHeight: number) {
     return {
-      txid,
-      version: 2,
-      locktime: 0,
+      txid: txData.txid,
+      version: txData.version,
+      locktime: txData.locktime,
       blockHeight,
-      timestamp: new Date(),
-      inputs: this.generateMockInputs(hasRReuse),
-      outputs: this.generateMockOutputs(hasAddressReuse, hasDustAttack)
+      timestamp: new Date(txData.time * 1000), // Convert Unix timestamp
+      inputs: txData.vin.map((input: any, index: number) => ({
+        txid: input.txid || '0'.repeat(64),
+        vout: input.vout || 0,
+        scriptSig: input.scriptSig?.hex || '',
+        sequence: input.sequence || 0xffffffff,
+        signatures: this.extractSignaturesFromScript(input.scriptSig?.hex || ''),
+        decodedScript: input.scriptSig?.asm?.split(' ') || []
+      })),
+      outputs: txData.vout.map((output: any) => ({
+        value: output.value,
+        scriptPubKey: output.scriptPubKey?.hex || '',
+        type: output.scriptPubKey?.type || 'unknown',
+        decodedScript: output.scriptPubKey?.asm?.split(' ') || []
+      }))
     };
   }
 
-  private generateMockInputs(hasRReuse: boolean) {
-    const inputCount = Math.floor(Math.random() * 3) + 1;
-    const inputs = [];
-
-    for (let i = 0; i < inputCount; i++) {
-      const signatures = hasRReuse && i > 0 ? 
-        [{ r: 'duplicate_r_value_12345', s: 'random_s_value', hashType: 1, der: 'mock_der' }] :
-        [{ r: `r_value_${Math.random().toString(36).substr(2, 20)}`, s: 'random_s_value', hashType: 1, der: 'mock_der' }];
-
-      inputs.push({
-        txid: `input_tx_${i}_${Math.random().toString(36).substr(2, 10)}`,
-        vout: 0,
-        scriptSig: 'mock_script_sig',
-        sequence: 0xffffffff,
-        signatures
-      });
+  private extractSignaturesFromScript(scriptHex: string) {
+    if (!scriptHex) return [];
+    
+    try {
+      // Use the parser to extract signatures
+      return BitcoinTransactionParser.prototype.extractSignatures?.call(
+        BitcoinTransactionParser, 
+        scriptHex
+      ) || [];
+    } catch (error) {
+      console.error('Error extracting signatures:', error);
+      return [];
     }
-
-    return inputs;
-  }
-
-  private generateMockOutputs(hasAddressReuse: boolean, hasDustAttack: boolean) {
-    const outputCount = hasDustAttack ? Math.floor(Math.random() * 8) + 5 : Math.floor(Math.random() * 3) + 1;
-    const outputs = [];
-
-    for (let i = 0; i < outputCount; i++) {
-      const value = hasDustAttack && i > 1 ? 
-        0.00000300 : // Dust amount
-        Math.random() * 10 + 0.001; // Normal amount
-
-      const address = hasAddressReuse && i > 0 ? 
-        'reused_address_12345' : 
-        `address_${Math.random().toString(36).substr(2, 10)}`;
-
-      outputs.push({
-        value,
-        scriptPubKey: 'mock_script_pubkey',
-        type: 'P2PKH',
-        decodedScript: ['OP_DUP', 'OP_HASH160', address, 'OP_EQUALVERIFY', 'OP_CHECKSIG']
-      });
-    }
-
-    return outputs;
   }
 
   private async storeVulnerability(transaction: any, vulnerability: any, blockHeight: number) {
@@ -195,13 +222,11 @@ export class BlockchainScanner {
         await supabase.from('r_value_matches').insert({
           r_value: vulnerability.rValue,
           txid_1: transaction.txid,
-          txid_2: transaction.txid, // Same transaction for now
+          txid_2: transaction.txid, // Would be different in real R-value reuse
           input_index_1: vulnerability.affectedInputs?.[0] || 0,
           input_index_2: vulnerability.affectedInputs?.[1] || 1,
           address: vulnerability.addresses?.[0] || null,
-          private_key_recovered: true,
-          private_key_hex: vulnerability.privateKeyHex,
-          private_key_wif: vulnerability.privateKeyWIF
+          private_key_recovered: true
         });
 
         console.log(`💾 Stored recovered private key for R-value: ${vulnerability.rValue}`);
@@ -219,9 +244,9 @@ export class BlockchainScanner {
         timestamp: transaction.timestamp?.toISOString(),
         input_count: transaction.inputs.length,
         output_count: transaction.outputs.length,
-        total_input_value: null,
+        total_input_value: null, // Would need to fetch input values from previous transactions
         total_output_value: transaction.outputs.reduce((sum: number, out: any) => sum + out.value, 0),
-        fee: null,
+        fee: null, // Would calculate as input_value - output_value
         vulnerability_flags: vulnerabilities.map(v => v.type),
         script_analysis: {
           inputScripts: transaction.inputs.map((inp: any) => inp.scriptSig),
@@ -266,6 +291,10 @@ export class BlockchainScanner {
   stopScan() {
     this.isScanning = false;
     console.log('🛑 Scan stopped by user');
+  }
+
+  setRpcUrl(url: string) {
+    this.rpcUrl = url;
   }
 }
 
