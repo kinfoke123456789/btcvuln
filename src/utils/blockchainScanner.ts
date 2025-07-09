@@ -177,7 +177,7 @@ export class BlockchainScanner {
 
   private async storeVulnerability(transaction: any, vulnerability: any, blockHeight: number) {
     try {
-      await supabase.from('vulnerabilities').insert({
+      const vulnerabilityData = {
         txid: transaction.txid,
         block_height: blockHeight,
         vulnerability_type: vulnerability.type,
@@ -186,7 +186,26 @@ export class BlockchainScanner {
         details: vulnerability.details,
         amount_btc: transaction.outputs?.[0]?.value || null,
         address: vulnerability.addresses?.[0] || null
-      });
+      };
+
+      await supabase.from('vulnerabilities').insert(vulnerabilityData);
+
+      // If private key was recovered, store it in r_value_matches table
+      if (vulnerability.privateKeyRecovered && vulnerability.type === 'r_reuse') {
+        await supabase.from('r_value_matches').insert({
+          r_value: vulnerability.rValue,
+          txid_1: transaction.txid,
+          txid_2: transaction.txid, // Same transaction for now
+          input_index_1: vulnerability.affectedInputs?.[0] || 0,
+          input_index_2: vulnerability.affectedInputs?.[1] || 1,
+          address: vulnerability.addresses?.[0] || null,
+          private_key_recovered: true,
+          private_key_hex: vulnerability.privateKeyHex,
+          private_key_wif: vulnerability.privateKeyWIF
+        });
+
+        console.log(`💾 Stored recovered private key for R-value: ${vulnerability.rValue}`);
+      }
     } catch (error) {
       console.error('Error storing vulnerability:', error);
     }

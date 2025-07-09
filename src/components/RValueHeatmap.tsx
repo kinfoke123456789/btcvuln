@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +12,9 @@ interface RValueMatch {
   riskLevel: 'critical' | 'high';
   discoveredAt: Date;
   potentialLeak: boolean;
+  privateKeyRecovered?: boolean;
+  privateKeyHex?: string;
+  privateKeyWIF?: string;
 }
 
 const RValueHeatmap = () => {
@@ -181,6 +183,11 @@ const RValueHeatmap = () => {
                             PRIVATE KEY LEAK
                           </Badge>
                         )}
+                        {match.privateKeyRecovered && (
+                          <Badge className="bg-purple-600 text-white text-xs animate-pulse">
+                            KEY RECOVERED
+                          </Badge>
+                        )}
                       </div>
                       <span className="text-xs text-slate-400">
                         {formatTimeAgo(match.discoveredAt)}
@@ -194,7 +201,7 @@ const RValueHeatmap = () => {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-4">
                       <div>
                         <div className="text-slate-400 mb-1">Affected Transactions ({match.transactions.length}):</div>
                         <div className="space-y-1">
@@ -216,6 +223,26 @@ const RValueHeatmap = () => {
                         </div>
                       </div>
                     </div>
+
+                    {match.privateKeyRecovered && match.privateKeyHex && match.privateKeyWIF && (
+                      <div className="mt-4 p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg">
+                        <div className="text-purple-300 text-sm font-semibold mb-2">🔓 RECOVERED PRIVATE KEY</div>
+                        <div className="space-y-2">
+                          <div>
+                            <div className="text-xs text-purple-200 mb-1">Hex Format:</div>
+                            <div className="text-xs font-mono text-purple-100 bg-purple-900/30 p-2 rounded break-all">
+                              {match.privateKeyHex}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-purple-200 mb-1">WIF Format:</div>
+                            <div className="text-xs font-mono text-purple-100 bg-purple-900/30 p-2 rounded break-all">
+                              {match.privateKeyWIF}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {match.potentialLeak && (
                       <div className="mt-3 p-2 bg-red-500/10 border border-red-500/20 rounded text-xs text-red-300">

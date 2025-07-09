@@ -1,4 +1,3 @@
-
 export interface BitcoinTransaction {
   txid: string;
   version: number;
@@ -43,6 +42,9 @@ export interface VulnerabilityResult {
   affectedOutputs?: number[];
   rValue?: string;
   addresses?: string[];
+  privateKeyRecovered?: boolean;
+  privateKeyHex?: string;
+  privateKeyWIF?: string;
 }
 
 export class BitcoinTransactionParser {
