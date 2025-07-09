@@ -45,6 +45,7 @@ export interface VulnerabilityResult {
   privateKeyRecovered?: boolean;
   privateKeyHex?: string;
   privateKeyWIF?: string;
+  amount_btc?: number;
 }
 
 export class BitcoinTransactionParser {
