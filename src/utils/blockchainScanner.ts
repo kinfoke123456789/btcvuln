@@ -191,14 +191,83 @@ export class BlockchainScanner {
     if (!scriptHex) return [];
     
     try {
-      // Use the parser to extract signatures
-      return BitcoinTransactionParser.prototype.extractSignatures?.call(
-        BitcoinTransactionParser, 
-        scriptHex
-      ) || [];
+      // Extract signatures using the same logic as BitcoinTransactionParser
+      const signatures: any[] = [];
+      const script = Buffer.from(scriptHex, 'hex');
+      let i = 0;
+
+      while (i < script.length) {
+        const length = script[i];
+        if (length > 0 && length < 76 && i + length < script.length) {
+          const data = script.subarray(i + 1, i + 1 + length);
+          
+          // Check if this looks like a DER signature (starts with 0x30)
+          if (data[0] === 0x30 && data.length > 8) {
+            try {
+              const signature = this.parseDERSignature(data);
+              if (signature) {
+                signatures.push(signature);
+              }
+            } catch (e) {
+              // Skip invalid signatures
+            }
+          }
+          i += 1 + length;
+        } else {
+          i++;
+        }
+      }
+
+      return signatures;
     } catch (error) {
       console.error('Error extracting signatures:', error);
       return [];
+    }
+  }
+
+  private parseDERSignature(derData: Buffer): any | null {
+    try {
+      let offset = 0;
+      
+      // DER sequence tag
+      if (derData[offset] !== 0x30) return null;
+      offset++;
+      
+      // Length of sequence
+      const sequenceLength = derData[offset];
+      offset++;
+      
+      // R value
+      if (derData[offset] !== 0x02) return null; // INTEGER tag
+      offset++;
+      
+      const rLength = derData[offset];
+      offset++;
+      
+      const r = derData.subarray(offset, offset + rLength).toString('hex');
+      offset += rLength;
+      
+      // S value
+      if (derData[offset] !== 0x02) return null; // INTEGER tag
+      offset++;
+      
+      const sLength = derData[offset];
+      offset++;
+      
+      const s = derData.subarray(offset, offset + sLength).toString('hex');
+      offset += sLength;
+      
+      // Hash type
+      const hashType = offset < derData.length ? derData[offset] : 0x01;
+      
+      return {
+        r,
+        s,
+        hashType,
+        der: derData.toString('hex')
+      };
+    } catch (e) {
+      return null;
     }
   }
 
